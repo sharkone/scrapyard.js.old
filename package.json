@@ -21,8 +21,10 @@
     "async": "^1.4.2",
     "bittorrent-tracker": "^6.0.5",
     "express": "^4.13.3",
+    "express-redis-cache": "^0.1.8",
     "newrelic": "^1.22.1",
     "parse-torrent": "^5.4.0",
+    "redis": "^2.0.1",
     "string-capitalize": "^1.0.1",
     "trakt-api": "^0.2.0"
   }
