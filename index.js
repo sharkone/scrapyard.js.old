@@ -2,15 +2,15 @@ require('newrelic');
 
 // ----------------------------------------------------------------------------
 
-var VERSION = '0.0.1';
+var app              = require('express')();
+var async            = require('async');
+var cache            = require('express-redis-cache')({ client: require('redis').createClient(process.env.REDISCLOUD_URL, { no_ready_check: true }) });
+var stringCapitalize = require('string-capitalize');
+var trakt            = require('trakt-api')('64cf92c702ff753cc14a6d421824efcd32f22058f79bf6d637fa92e23229f35f', { logLevel: 'info'});
 
 // ----------------------------------------------------------------------------
 
-var async            = require('async');
-var cache            = require('express-redis-cache')({ client: require('redis').createClient(process.env.REDISCLOUD_URL, { no_ready_check: true }) });
-var express          = require('express');
-var stringCapitalize = require('string-capitalize');
-var traktApi         = require('trakt-api');
+var VERSION = '0.0.1';
 
 // ----------------------------------------------------------------------------
 
@@ -36,36 +36,26 @@ var traktApi         = require('trakt-api');
 // });
 
 // ----------------------------------------------------------------------------
+// Global Setup
+// ----------------------------------------------------------------------------
 
 cache.on('message', function (message) {
   console.log(message);
 });
 
-// ----------------------------------------------------------------------------
-
-var app = express();
-
 app.set('json spaces', 2);
-
-app.get('/', function(req, res) {
-  res.json({ version: VERSION });
-});
 
 var server = app.listen(process.env.PORT || 8080, process.env.IP || '0.0.0.0', function() {
   console.log('[scrapyard] Starting on %s:%s', server.address().address, server.address().port);
+
+  server.on('close', function() {
+    console.log('[scrapyard] Stopping');
+    process.exit();
+  });
+
+  process.on('SIGINT', function() { server.close(); });
+  process.on('SIGTERM', function() { server.close(); });
 });
-
-function shutdown() {
-  console.log('[scrapyard] Stopping');
-  server.close(process.exit);
-}
-
-process.on('SIGINT', shutdown);
-process.on('SIGTERM', shutdown);
-
-// ----------------------------------------------------------------------------
-
-var trakt = traktApi('64cf92c702ff753cc14a6d421824efcd32f22058f79bf6d637fa92e23229f35f', { logLevel: 'info'});
 
 // ----------------------------------------------------------------------------
 // Movies
@@ -154,6 +144,14 @@ function parseMovieListData(movieListData, callback) {
   callback);
 }
 
+// ----------------------------------------------------------------------------
+// API
+// ----------------------------------------------------------------------------
+
+app.get('/', function(req, res) {
+  res.json({ version: VERSION });
+});
+
 app.get('/api/movies/popular', cache.route({ expire: 3600 }), function(req, res) {
   var page = parseInt(req.query.page, 10) || 1;
 
@@ -210,25 +208,3 @@ app.get('/api/movie/:trakt_slug', cache.route({ expire: 3600 }), function(req, r
       res.json(movieInfo);
   });
 });
-
-// // ----------------------------------------------------------------------------
-// // Shows
-// // ----------------------------------------------------------------------------
-
-// app.get('/api/shows/popular', function(req, res) {
-//   var page = parseInt(req.query.page) || 1;
-//   //res.json(page.toString());
-// });
-
-// app.get('/api/shows/trending', function(req, res) {
-//   var page = parseInt(req.query.page) || 1;
-//   //res.json(page.toString());
-// });
-
-// app.get('/api/shows/search', function(req, res) {
-//   var query = req.query.query || '';
-//   if (query)
-//     res.json(query);
-//   else
-//     res.sendStatus(404);
-// });
